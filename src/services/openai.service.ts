@@ -1,57 +1,41 @@
 import { ChatCompletionMessageParam } from "openai/resources/chat";
 import openai from "../config/openai";
-import { pineconeIndex, pineconeShopIndex } from "../config/pinecone";
-import getPrompts from "../constant/prompts";
 import Chat from "../database/models/chats";
 import { saveChatMessage } from "./chat.service";
-import { error } from "console";
-import { chatbot } from "../database/models/chatbot";
-import { Knowledge } from "../database/models/knowlodge";
+import { vectorSearch } from "./vector.search";
+import { KnowledgeCategory } from "../types";
+import getPrompts from "../constant/prompts";
+
 
 export interface ChatResponse {
   role: "assistant";
   content: string;
-  chatbotId?: string;
-  id: string;
+  category?: KnowledgeCategory;
+  chatId: string;
 }
 
-const embeddingCache = new Map<string, number[]>();
-
-const trimMessages = (messages: ChatCompletionMessageParam[]) => {
-  return messages.slice(Math.max(messages.length - 10, 0));
+export const getAllResponses = async (
+  limit = 50,
+  skip = 0
+) => {
+  return await Chat.find().limit(limit).skip(skip).lean().exec();
 };
 
 export const getChatResponse = async (
   message: string,
-  chatbotId: string,
+  category?: KnowledgeCategory,
   chatId?: string
 ): Promise<ChatResponse> => {
   let history = [];
-  if (chatbotId) {
-    const existChatbot = chatbot.findOne({ _id: chatbotId });
-    if (!existChatbot) {
-      return {
-        role: "assistant",
-        content: "chatbot Id does not exist",
-        id: chatId || "",
-      };
-    }
-  } else {
-    return {
-      role: "assistant",
-      content: "chatbot Id does not exist",
-      id: "",
-    };
-  }
 
   if (chatId) {
-    const chat = await Chat.findOne({ chatId, chatbotId });
+    const chat = await Chat.findOne({ chatId });
     if (!chat) {
       return {
         role: "assistant",
         content: "chat Id does not exist",
-        chatbotId: chatbotId,
-        id: chatId,
+        category: category,
+        chatId: chatId,
       };
     }
 
@@ -59,13 +43,32 @@ export const getChatResponse = async (
       history = chat.choices;
     }
   }
-  const knowledge = await Knowledge.findOne({ chatbotId });
+
+  const relevantChunks = await vectorSearch(
+    message,
+    category as KnowledgeCategory
+  );
+  const context = relevantChunks
+    .map((chunk, index) => `[${index + 1}] ${chunk.text}`)
+    .join("\n\n");
+
+  const conversationHistory: ChatCompletionMessageParam[] =
+    history && history.length > 0
+      ? history.slice(-6).map(
+          (msg) =>
+            ({
+              role: msg.role === "user" ? "user" : "assistant",
+              content: msg.message || msg.messages || "",
+            } as ChatCompletionMessageParam)
+        )
+      : [];
 
   const fullMessages: ChatCompletionMessageParam[] = [
     {
       role: "system",
-      content: getPrompts(history, String(knowledge?.promptContent)),
+      content: getPrompts(context),
     },
+    ...conversationHistory,
     {
       role: "user",
       content: message,
@@ -80,11 +83,13 @@ export const getChatResponse = async (
     top_p: 1,
   });
 
-  const assistantMessageContent = completion.choices[0].message.content || "";
+  const assistantMessageContent =
+    completion.choices[0].message.content ||
+    "I apologize, but I could not generate a response.";
 
   await saveChatMessage(
     chatId || completion.id,
-    chatbotId,
+    category as KnowledgeCategory,
     assistantMessageContent,
     message
   );
@@ -92,48 +97,44 @@ export const getChatResponse = async (
   return {
     role: "assistant",
     content: assistantMessageContent,
-    chatbotId: chatbotId,
-    id: chatId || completion.id,
+    category: category,
+    chatId: chatId || completion.id,
   };
 };
 
-const getRelevantContext = async (
-  query: string,
-  index: typeof pineconeIndex | typeof pineconeShopIndex,
-  includePrice = false
-): Promise<string> => {
-  const embedding = await getEmbedding(query);
+export const getChatHistoryResponse = async (
+  chatId: string
+): Promise<ChatResponse[]> => {
+  try {
+    const history = await Chat.findOne({ chatId: chatId })
+      .select("choices")
+      .lean();
 
-  const result = await index.query({
-    topK: 5,
-    vector: embedding,
-    includeMetadata: true,
-  });
+    if (!history) {
+      throw new Error("Chat history not found");
+    }
 
-  return result.matches
-    .map((match) => {
-      const meta = match.metadata;
-      if (!meta) return "";
-
-      if (includePrice) {
-        return `Title: ${meta.title}\nPrice: ${meta.price}\nLink: ${meta.link}`;
-      }
-
-      return meta.content || "";
-    })
-    .filter(Boolean)
-    .join("\n\n");
+    const conversation = history.choices ?? [];
+    return conversation.map((msg) => ({
+      role: "assistant" as const,
+      content: msg.message || msg.messages || "",
+      chatId: chatId,
+    }));
+  } catch (error) {
+    console.error("Error fetching chat history:", error);
+    throw error;
+  }
 };
 
-const getEmbedding = async (input: string): Promise<number[]> => {
-  if (embeddingCache.has(input)) return embeddingCache.get(input)!;
-
-  const res = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input,
-  });
-
-  const vector = res.data[0].embedding;
-  embeddingCache.set(input, vector);
-  return vector;
+export const deleteChatResponse = async (chatId: string): Promise<String> => {
+  try {
+    const result = await Chat.deleteOne({ chatId: chatId });
+    if (result.deletedCount === 0) {
+      throw new Error("Conversation not found");
+    }
+    return "Conversation deleted successfully";
+  } catch (error) {
+    console.error("Delete chat error:", error);
+    throw error;
+  }
 };

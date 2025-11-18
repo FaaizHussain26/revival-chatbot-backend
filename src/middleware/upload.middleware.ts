@@ -2,7 +2,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
 
-const uploadPath = "/app/tmp";
+const uploadPath = "/uploads";
 
 export function fileupload() {
 const uploadDir = path.join(uploadPath);

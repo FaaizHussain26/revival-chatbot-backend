@@ -1,25 +1,25 @@
-import { chatbot } from "../database/models/chatbot";
 import Chat from "../database/models/chats";
+import { KnowledgeCategory } from "../types";
 
 export type Message = {
   role: string;
-  message: string; 
+  message: string;
   timestamp: Date;
 };
 
 const saveChatMessage = async (
   conversationId: string,
-  chatbotId: string,
+  category: KnowledgeCategory,
   aiResponse: string,
   userMessage: string
 ) => {
   try {
-    let chat = await Chat.findOne({ chatId: conversationId , chatbotId: chatbotId });
+    let chat = await Chat.findOne({ chatId: conversationId });
 
     if (!chat) {
       chat = new Chat({
         chatId: conversationId,
-        chatbotId: chatbotId,
+        category: category,
         choices: [
           { role: "user", messages: userMessage, timestamp: new Date() },
           { role: "assistant", messages: aiResponse, timestamp: new Date() },
@@ -40,5 +40,5 @@ const saveChatMessage = async (
     throw error;
   }
 };
-export { saveChatMessage };
 
+export { saveChatMessage };

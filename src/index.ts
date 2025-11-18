@@ -6,9 +6,8 @@ import * as dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 import connectDB from "./database";
 import chatRouter from "./routes/chat.route";
-import knowledgeRouter from "./routes/knowledge.routes";
-import { startInactivityChecker } from "./services/inactivity.service";
-import chatbotRouter from "./routes/chatbot.route";
+import uploadRouter from "./routes/upload.route";
+import scrapeRouter from "./routes/scrape.route";
 
 dotenv.config();
 const port = process.env.PORT || 5000;
@@ -16,8 +15,6 @@ const port = process.env.PORT || 5000;
 const app = express();
 
 connectDB();
-
- startInactivityChecker();
 
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000,
@@ -42,8 +39,8 @@ const options = [
 app.use(options);
 
 app.use("/api/chat", chatRouter);
-app.use("/api/knowledge", knowledgeRouter);
-app.use("/api/chatbot", chatbotRouter);
+app.use("/api/upload", uploadRouter);
+app.use("/api/scraper", scrapeRouter);
 
 app.listen(port, async () => {
   console.log(`Server is running on port ${port}`);

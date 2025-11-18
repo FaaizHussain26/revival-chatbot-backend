@@ -1,13 +1,8 @@
 import mongoose from "mongoose";
-import { chatbot } from "./chatbot";
+import { KnowledgeCategory } from "../../types";
 
 const chatSchema = new mongoose.Schema({
   chatId: {
-    type: String,
-    required: true,
-  },
-
-  chatbotId: {
     type: String,
     required: true,
   },
@@ -16,14 +11,14 @@ const chatSchema = new mongoose.Schema({
     type: Array,
     required: false,
   },
-  isEmail: {
-    type: Boolean,
-    default: false,
-  },
-
   createdAt: {
     type: Date,
     default: Date.now,
+  },
+  category: {
+    type: String,
+    enum: Object.values(KnowledgeCategory),
+    required: true,
   },
   updatedAt: {
     type: Date,
