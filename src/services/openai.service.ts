@@ -6,7 +6,6 @@ import { vectorSearch } from "./vector.search";
 import { KnowledgeCategory } from "../types";
 import getPrompts from "../constant/prompts";
 
-
 export interface ChatResponse {
   role: "assistant";
   content: string;
@@ -14,10 +13,7 @@ export interface ChatResponse {
   chatId: string;
 }
 
-export const getAllResponses = async (
-  limit = 50,
-  skip = 0
-) => {
+export const getAllResponses = async (limit = 50, skip = 0) => {
   return await Chat.find().limit(limit).skip(skip).lean().exec();
 };
 
@@ -31,12 +27,7 @@ export const getChatResponse = async (
   if (chatId) {
     const chat = await Chat.findOne({ chatId });
     if (!chat) {
-      return {
-        role: "assistant",
-        content: "chat Id does not exist",
-        category: category,
-        chatId: chatId,
-      };
+      throw new Error("Chat not found");
     }
 
     if (chat?.choices) {

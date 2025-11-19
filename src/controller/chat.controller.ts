@@ -32,6 +32,13 @@ export const createChat = async (
 ): Promise<void> => {
   try {
     const { messages, category, chatId } = req.body;
+    if (!category || category.length === 0) {
+      res.status(400).json({
+        success: false,
+        message: "Category is required",
+      });
+      return;
+    }
 
     if (!messages || messages.length === 0) {
       res.status(202).json({
@@ -43,6 +50,7 @@ export const createChat = async (
           category: category,
         },
       });
+      return;
     }
     const response = await getChatResponse(messages, category, chatId);
 
@@ -54,7 +62,7 @@ export const createChat = async (
   } catch (error: any) {
     res.status(500).json({
       success: false,
-      message: "Messages are required",
+      message: "Error creating chat",
       error: error.message,
     });
   }
