@@ -32,13 +32,13 @@ export const createChat = async (
 ): Promise<void> => {
   try {
     const { messages, category, chatId } = req.body;
-    if (!category || category.length === 0) {
-      res.status(400).json({
-        success: false,
-        message: "Category is required",
-      });
-      return;
-    }
+    // if (!category || category.length === 0) {
+    //   res.status(400).json({
+    //     success: false,
+    //     message: "Category is required",
+    //   });
+    //   return;
+    // }
 
     if (!messages || messages.length === 0) {
       res.status(202).json({

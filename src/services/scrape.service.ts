@@ -122,7 +122,7 @@ function isSameDomain(baseUrl: string, targetUrl: string): boolean {
 async function processAndStoreContent(
   content: string,
   sourceUrl: string,
-  category: KnowledgeCategory = KnowledgeCategory.Others
+  category: KnowledgeCategory = KnowledgeCategory.Scraped
 ): Promise<void> {
   // Generate content hash
   const contentHash = generateHash(content);
