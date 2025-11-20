@@ -57,7 +57,7 @@ export const getChatResponse = async (
   const fullMessages: ChatCompletionMessageParam[] = [
     {
       role: "system",
-      content: getPrompts(context),
+      content: getPrompts(context, category || KnowledgeCategory.Scraped),
     },
     ...conversationHistory,
     {
